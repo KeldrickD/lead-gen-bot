@@ -6,6 +6,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, timedelta
 import time
 import logging
+from typing import Dict, Any
 
 from utils import load_config, format_timestamp, logger, notify_warm_lead, daily_stats_report
 
@@ -365,6 +366,191 @@ class LeadTracker:
         except Exception as e:
             logger.error(f"Error exporting leads to CSV: {e}")
             return False
+
+    def record_payment(self, lead_id: str, payment_data: Dict[str, Any]):
+        """
+        Record payment information in Google Sheets.
+        
+        Args:
+            lead_id: The unique identifier for the lead
+            payment_data: Dictionary containing payment details
+        """
+        try:
+            # Add the payment record to the "Payments" sheet
+            payments_sheet = self.spreadsheet.worksheet("Payments")
+            
+            # Check if we need to add headers (if sheet is empty)
+            if len(payments_sheet.get_all_values()) == 0:
+                headers = [
+                    "Lead ID", "Payment Status", "Package Type", "Amount Paid", 
+                    "Payment Date", "Payment Type", "Balance Due", "Timestamp"
+                ]
+                payments_sheet.append_row(headers)
+            
+            # Prepare payment row
+            payment_row = [
+                lead_id, 
+                payment_data.get("payment_status", ""),
+                payment_data.get("package_type", ""),
+                payment_data.get("amount_paid", 0),
+                payment_data.get("payment_date", ""),
+                payment_data.get("payment_type", ""),
+                payment_data.get("balance_due", 0),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ]
+            
+            # Add the payment record
+            payments_sheet.append_row(payment_row)
+            
+            # Update the lead status in the "Leads" sheet
+            leads_sheet = self.spreadsheet.worksheet("Leads")
+            
+            # Find the lead row
+            cell = leads_sheet.find(lead_id)
+            if cell:
+                # Update payment status in Leads sheet
+                status_column = 5  # Assuming column E is for status
+                payment_status_column = 7  # Assuming column G is for payment status
+                
+                leads_sheet.update_cell(cell.row, payment_status_column, payment_data.get("payment_status", ""))
+                leads_sheet.update_cell(cell.row, status_column, "Converted" if payment_data.get("payment_type") == "full" else "Deposit Paid")
+            
+            logging.info(f"Payment record added for lead {lead_id}")
+            
+        except Exception as e:
+            logging.error(f"Error recording payment: {e}")
+            raise
+
+    def schedule_reminder(self, lead_id: str, reminder_data: Dict[str, Any]):
+        """
+        Schedule a reminder for future follow-up (e.g., balance payment reminder).
+        
+        Args:
+            lead_id: The unique identifier for the lead
+            reminder_data: Dictionary containing reminder details
+        """
+        try:
+            # Add the reminder to the "Reminders" sheet
+            reminders_sheet = self.spreadsheet.worksheet("Reminders")
+            
+            # Check if we need to add headers (if sheet is empty)
+            if len(reminders_sheet.get_all_values()) == 0:
+                headers = [
+                    "Lead ID", "Reminder Type", "Amount Due", "Package", 
+                    "Scheduled Date", "Reminder Sent", "Created Date"
+                ]
+                reminders_sheet.append_row(headers)
+            
+            # Prepare reminder row
+            reminder_row = [
+                lead_id, 
+                reminder_data.get("reminder_type", ""),
+                reminder_data.get("balance_amount", 0),
+                reminder_data.get("package_name", ""),
+                reminder_data.get("scheduled_date", ""),
+                "False",  # Reminder not sent yet
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ]
+            
+            # Add the reminder record
+            reminders_sheet.append_row(reminder_row)
+            
+            logging.info(f"Reminder scheduled for lead {lead_id} on {reminder_data.get('scheduled_date', '')}")
+            
+        except Exception as e:
+            logging.error(f"Error scheduling reminder: {e}")
+            raise
+
+    def check_and_send_reminders(self):
+        """Check for due reminders and send them."""
+        try:
+            # Get the "Reminders" sheet
+            reminders_sheet = self.spreadsheet.worksheet("Reminders")
+            
+            # Get all reminders
+            reminders = reminders_sheet.get_all_records()
+            
+            current_time = datetime.now()
+            
+            for idx, reminder in enumerate(reminders):
+                # Skip reminders that have already been sent
+                if reminder["Reminder Sent"] == "True":
+                    continue
+                
+                # Check if it's time to send this reminder
+                scheduled_date = datetime.strptime(reminder["Scheduled Date"], "%Y-%m-%d %H:%M:%S")
+                
+                if current_time >= scheduled_date:
+                    # It's time to send this reminder
+                    lead_id = reminder["Lead ID"]
+                    
+                    if reminder["Reminder Type"] == "balance_due":
+                        # This is a balance payment reminder
+                        self._send_balance_reminder(
+                            lead_id=lead_id,
+                            balance_amount=reminder["Amount Due"],
+                            package_name=reminder["Package"]
+                        )
+                        
+                        # Mark reminder as sent
+                        row_idx = idx + 2  # +2 because idx is 0-based and we have a header row
+                        reminders_sheet.update_cell(row_idx, 6, "True")  # Update "Reminder Sent" column
+                        
+                        logging.info(f"Sent balance payment reminder to lead {lead_id}")
+                        
+                    elif reminder["Reminder Type"] == "no_payment":
+                        # This is a reminder for leads who didn't pay
+                        self._send_no_payment_reminder(
+                            lead_id=lead_id,
+                            package_name=reminder["Package"]
+                        )
+                        
+                        # Mark reminder as sent
+                        row_idx = idx + 2  # +2 because idx is 0-based and we have a header row
+                        reminders_sheet.update_cell(row_idx, 6, "True")  # Update "Reminder Sent" column
+                        
+                        logging.info(f"Sent no-payment reminder to lead {lead_id}")
+        
+        except Exception as e:
+            logging.error(f"Error checking and sending reminders: {e}")
+
+    def _send_balance_reminder(self, lead_id: str, balance_amount: float, package_name: str):
+        """Send a reminder for the remaining balance payment."""
+        from chatbot import chatbot  # Import here to avoid circular imports
+        
+        # Create a payment link for the balance
+        package_type = "basic"
+        if "E-commerce" in package_name:
+            package_type = "ecommerce"
+        elif "Custom" in package_name:
+            package_type = "custom"
+        
+        # Generate a custom payment link for the balance
+        payment_link = chatbot.generate_stripe_payment_link(package_type, "full")
+        
+        # Create reminder message
+        reminder_message = (
+            f"Hi there! This is a friendly reminder about the remaining balance of ${balance_amount} for your "
+            f"{package_name}. To proceed with launching your website, please complete your payment using this link: "
+            f"{payment_link['link']}\n\nIf you have any questions, please don't hesitate to ask!"
+        )
+        
+        # Send the message to the lead
+        chatbot.add_message(lead_id, "platform", "assistant", reminder_message)
+
+    def _send_no_payment_reminder(self, lead_id: str, package_name: str):
+        """Send a reminder to leads who didn't complete payment."""
+        from chatbot import chatbot  # Import here to avoid circular imports
+        
+        # Create reminder message
+        reminder_message = (
+            f"Hi there! I noticed you were interested in our {package_name} but haven't completed your purchase yet. "
+            f"I wanted to check if you have any questions or if there's anything I can help with? We're ready to start "
+            f"building your website whenever you're ready!"
+        )
+        
+        # Send the message to the lead
+        chatbot.add_message(lead_id, "platform", "assistant", reminder_message)
 
 if __name__ == "__main__":
     # Example usage

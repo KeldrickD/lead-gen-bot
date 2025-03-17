@@ -12,6 +12,9 @@ import uvicorn
 # Import our chatbot
 from chatbot import chatbot, ChatbotResponse
 
+# Import payment API
+from create_payment_api import router as payment_router
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +29,9 @@ app = FastAPI(
     description="API for the AI-powered lead generation and website sales chatbot",
     version="1.0.0"
 )
+
+# Include payment router
+app.include_router(payment_router)
 
 # Add CORS middleware
 app.add_middleware(

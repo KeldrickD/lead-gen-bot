@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 import requests
 from pydantic import BaseModel
+import stripe
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +56,9 @@ class AIWebsiteChatbot:
         if not openai.api_key:
             logger.error("OpenAI API key not found in environment variables")
             raise ValueError("OpenAI API key not found")
+            
+        # Initialize Stripe client
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
             
         # Load conversation history
         self.conversations = self.load_conversations()
@@ -134,20 +138,117 @@ class AIWebsiteChatbot:
         conversation.inactive_days = 0
         self.save_conversations()
     
-    def generate_stripe_payment_link(self, package_type: str) -> str:
-        """Generate a Stripe payment link for the specified package type."""
-        # This would integrate with the Stripe API in production
-        # For now, we'll use placeholder URLs based on package type
-        base_url = "https://buy.stripe.com/yourAccountLink/"
+    def generate_stripe_payment_link(self, package_type: str, payment_option: str = "full") -> Dict[str, str]:
+        """
+        Generate Stripe payment links for the specified package type.
         
-        if package_type.lower() == "basic" or package_type.lower() == "business":
-            return f"{base_url}basic_website_497"
-        elif package_type.lower() == "ecommerce" or package_type.lower() == "e-commerce":
-            return f"{base_url}ecommerce_website_997"
-        elif package_type.lower() == "custom":
-            return f"{base_url}custom_website_1997"
-        else:
-            return f"{base_url}consultation"
+        Args:
+            package_type: The type of package ("basic", "ecommerce", "custom")
+            payment_option: The payment option ("full" or "deposit")
+            
+        Returns:
+            Dictionary with payment links and details
+        """
+        # Get package details
+        package_details = {
+            "basic": {"name": "Basic Business Website", "full_price": 497, "deposit": 500},
+            "ecommerce": {"name": "E-commerce Store", "full_price": 997, "deposit": 500},
+            "custom": {"name": "Custom Web Application", "full_price": 1997, "deposit": 500}
+        }
+        
+        # Default to basic if package type isn't recognized
+        if package_type.lower() not in package_details:
+            package_type = "basic"
+        
+        package_info = package_details[package_type.lower()]
+        package_name = package_info["name"]
+        
+        try:
+            # Create payment links using Stripe API
+            if payment_option == "deposit":
+                # Create deposit payment link ($500)
+                deposit_session = stripe.checkout.Session.create(
+                    payment_method_types=["card"],
+                    line_items=[{
+                        "price_data": {
+                            "currency": "usd",
+                            "product_data": {
+                                "name": f"{package_name} - Deposit",
+                                "description": f"$500 deposit for {package_name}"
+                            },
+                            "unit_amount": 50000,  # $500.00 in cents
+                        },
+                        "quantity": 1,
+                    }],
+                    mode="payment",
+                    success_url="https://your-website.com/success?session_id={CHECKOUT_SESSION_ID}",
+                    cancel_url="https://your-website.com/canceled",
+                    metadata={
+                        "package_type": package_type,
+                        "payment_type": "deposit"
+                    }
+                )
+                
+                return {
+                    "type": "deposit",
+                    "link": deposit_session.url,
+                    "amount": 500,
+                    "remaining": package_info["full_price"] - 500,
+                    "package": package_name
+                }
+            
+            else:  # full payment
+                # Create full payment link
+                full_session = stripe.checkout.Session.create(
+                    payment_method_types=["card"],
+                    line_items=[{
+                        "price_data": {
+                            "currency": "usd",
+                            "product_data": {
+                                "name": package_name,
+                                "description": f"Full payment for {package_name}"
+                            },
+                            "unit_amount": package_info["full_price"] * 100,  # Convert to cents
+                        },
+                        "quantity": 1,
+                    }],
+                    mode="payment",
+                    success_url="https://your-website.com/success?session_id={CHECKOUT_SESSION_ID}",
+                    cancel_url="https://your-website.com/canceled",
+                    metadata={
+                        "package_type": package_type,
+                        "payment_type": "full"
+                    }
+                )
+                
+                return {
+                    "type": "full",
+                    "link": full_session.url,
+                    "amount": package_info["full_price"],
+                    "package": package_name
+                }
+            
+        except Exception as e:
+            logger.error(f"Error creating Stripe payment link: {e}")
+            
+            # Fallback to mock URLs during development or when Stripe is not configured
+            base_url = "https://buy.stripe.com/yourAccountLink/"
+            
+            if payment_option == "deposit":
+                return {
+                    "type": "deposit",
+                    "link": f"{base_url}{package_type}_deposit_500",
+                    "amount": 500,
+                    "remaining": package_info["full_price"] - 500,
+                    "package": package_name
+                }
+            else:
+                return {
+                    "type": "full",
+                    "link": f"{base_url}{package_type}_full_{package_info['full_price']}",
+                    "amount": package_info["full_price"],
+                    "package": package_name
+                }
     
     def should_send_payment_link(self, messages: List[Message]) -> Tuple[bool, str]:
         """Determine if we should send a payment link based on conversation."""
@@ -173,77 +274,103 @@ class AIWebsiteChatbot:
         return False, ""
     
     def process_message(self, lead_id: str, platform: str, message_content: str) -> ChatbotResponse:
-        """Process an incoming message and generate a response."""
-        # Add user message to conversation
-        self.add_message(lead_id, platform, "user", message_content)
+        """Process a message from a lead and return a response."""
+        # Create the conversation if it doesn't exist
+        if lead_id not in self.conversations:
+            self.conversations[lead_id] = Conversation(
+                lead_id=lead_id,
+                platform=platform,
+                messages=[
+                    Message(role="system", content=self.system_prompt, timestamp=format_timestamp(datetime.now()))
+                ],
+                last_updated=format_timestamp(datetime.now())
+            )
         
         # Get the conversation
-        conversation = self.get_conversation(lead_id, platform)
+        conversation = self.conversations[lead_id]
         
-        # Format messages for OpenAI API
-        formatted_messages = [{"role": "system", "content": self.system_prompt}]
-        for msg in conversation.messages:
-            formatted_messages.append({"role": msg.role, "content": msg.content})
+        # Add the user message to history
+        self.add_message(lead_id, platform, "user", message_content)
         
         # Check if we should send a payment link
         should_send, package_type = self.should_send_payment_link(conversation.messages)
         
-        # Special action for payment link
+        # Initialize response actions
         actions = []
+        
+        # Special action for payment link
+        # If the user is ready to make a purchase, offer payment options
         if should_send and not conversation.payment_sent:
-            payment_link = self.generate_stripe_payment_link(package_type)
+            # Generate both payment options
+            deposit_payment = self.generate_stripe_payment_link(package_type, "deposit")
+            full_payment = self.generate_stripe_payment_link(package_type, "full")
+            
             actions.append({
-                "type": "payment_link",
-                "link": payment_link,
-                "package": package_type
+                "type": "payment_options",
+                "options": [
+                    {
+                        "type": "deposit",
+                        "link": deposit_payment["link"],
+                        "amount": deposit_payment["amount"],
+                        "remaining": deposit_payment["remaining"],
+                        "package": deposit_payment["package"]
+                    },
+                    {
+                        "type": "full",
+                        "link": full_payment["link"],
+                        "amount": full_payment["amount"],
+                        "package": full_payment["package"]
+                    }
+                ]
             })
             conversation.payment_sent = True
-            self.save_conversations()
-            
-            # Update lead status in lead tracker
-            self.lead_tracker.update_lead_status(lead_id, "qualified")
         
-        # Generate response using OpenAI
+        # Prepare conversation history for OpenAI
+        messages = [{"role": msg.role, "content": msg.content} for msg in conversation.messages]
+        
         try:
+            # Get response from OpenAI
             response = openai.ChatCompletion.create(
-                model="gpt-4",  # Use appropriate model
-                messages=formatted_messages,
-                max_tokens=300,
-                temperature=0.7
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=300
             )
             
             # Extract the response text
-            response_text = response.choices[0].message["content"].strip()
+            response_text = response.choices[0].message.content
             
-            # Add bot response to conversation
+            # If we're offering payment options, append them to the message
+            if actions and actions[0]["type"] == "payment_options":
+                options = actions[0]["options"]
+                deposit = options[0]
+                full = options[1]
+                
+                payment_options_text = f"\n\nI can offer you two payment options for the {deposit['package']}:\n\n"
+                payment_options_text += f"Option 1: Pay a ${deposit['amount']} deposit now, with the remaining ${deposit['remaining']} due before launch.\n"
+                payment_options_text += f"Deposit payment link: {deposit['link']}\n\n"
+                payment_options_text += f"Option 2: Pay the full amount of ${full['amount']} upfront for faster processing.\n"
+                payment_options_text += f"Full payment link: {full['link']}\n\n"
+                payment_options_text += "Which option works better for you?"
+                
+                response_text += payment_options_text
+            
+            # Log the response for debugging
+            logger.info(f"Sending response to lead {lead_id} on {platform}")
+            
+            # Add the assistant message to history
             self.add_message(lead_id, platform, "assistant", response_text)
             
-            # If we're sending a payment link, append it to the message
-            if actions and actions[0]["type"] == "payment_link":
-                payment_package = actions[0]["package"].capitalize()
-                payment_link = actions[0]["link"]
-                
-                response_text += f"\n\nHere's your payment link for the {payment_package} package: {payment_link}"
-            
-            # Return the response
             return ChatbotResponse(
                 message=response_text,
                 actions=actions
             )
             
         except Exception as e:
-            logger.error(f"Error generating response: {e}")
-            # Fallback response
-            fallback = "I apologize, but I'm having trouble processing your request right now. Let me connect you with a human team member who can help you further."
-            self.add_message(lead_id, platform, "assistant", fallback)
-            
-            # Send notification about the error
-            send_notification(
-                subject="Chatbot Error",
-                message=f"Error generating response for lead {lead_id} on {platform}: {str(e)}"
-            )
-            
-            return ChatbotResponse(message=fallback)
+            logger.error(f"Error getting response from OpenAI: {e}")
+            error_response = "I'm sorry, I encountered an error processing your request. Please try again later."
+            self.add_message(lead_id, platform, "assistant", error_response)
+            return ChatbotResponse(message=error_response, actions=[])
     
     def check_inactive_conversations(self):
         """Check for inactive conversations and send follow-ups."""
@@ -318,39 +445,105 @@ class AIWebsiteChatbot:
                 session = data.get("data", {}).get("object", {})
                 metadata = session.get("metadata", {})
                 lead_id = metadata.get("lead_id")
+                payment_type = metadata.get("payment_type", "full")
+                package_type = metadata.get("package_type", "basic")
+                amount_paid = session.get("amount_total", 0) / 100  # Convert from cents to dollars
                 
                 if lead_id and lead_id in self.conversations:
                     # Update conversation status
-                    self.conversations[lead_id].payment_completed = True
+                    if payment_type == "full":
+                        self.conversations[lead_id].payment_completed = True
+                    else:  # It's a deposit
+                        # Mark that deposit has been paid but full payment is not completed
+                        self.conversations[lead_id].deposit_paid = True
+                    
                     self.save_conversations()
                     
+                    # Update Google Sheets with payment information
+                    payment_status = "Full Payment" if payment_type == "full" else "Deposit Paid"
+                    package_info = {
+                        "basic": {"name": "Basic Business Website", "full_price": 497},
+                        "ecommerce": {"name": "E-commerce Store", "full_price": 997},
+                        "custom": {"name": "Custom Web Application", "full_price": 1997}
+                    }
+                    
+                    package_name = package_info.get(package_type, {}).get("name", "Website Package")
+                    full_price = package_info.get(package_type, {}).get("full_price", 0)
+                    
+                    payment_data = {
+                        "lead_id": lead_id,
+                        "payment_status": payment_status,
+                        "package_type": package_name,
+                        "amount_paid": amount_paid,
+                        "payment_date": format_timestamp(datetime.now()),
+                        "payment_type": payment_type,
+                        "balance_due": 0 if payment_type == "full" else (full_price - amount_paid)
+                    }
+                    
+                    # Record payment in Google Sheets
+                    self.lead_tracker.record_payment(lead_id, payment_data)
+                    
                     # Update lead status in lead tracker
-                    self.lead_tracker.update_lead_status(lead_id, "converted")
+                    status = "converted" if payment_type == "full" else "deposit_paid"
+                    self.lead_tracker.update_lead_status(lead_id, status)
                     
-                    # Send confirmation message
-                    intake_form_url = "https://forms.gle/KQGNwyWqHyVT9Bd16"
-                    confirmation_message = (
-                        f"Thank you for your payment! Your website project is now underway. "
-                        f"To help us create the perfect website for you, please fill out our quick intake form: {intake_form_url} "
-                        f"This will help us understand your specific requirements and preferences. "
-                        f"We'll start work immediately after receiving your completed form!"
-                    )
+                    # Send confirmation message based on payment type
+                    if payment_type == "full":
+                        # Send intake form for full payment
+                        intake_form_url = "https://forms.gle/KQGNwyWqHyVT9Bd16"
+                        confirmation_message = (
+                            f"Thank you for your payment! Your website project is now underway. "
+                            f"To help us create the perfect website for you, please fill out our quick intake form: {intake_form_url} "
+                            f"This will help us understand your specific requirements and preferences. "
+                            f"We'll be in touch within 24 hours with your project timeline."
+                        )
+                    else:
+                        # Send deposit confirmation and schedule follow-up for remaining balance
+                        intake_form_url = "https://forms.gle/KQGNwyWqHyVT9Bd16"
+                        confirmation_message = (
+                            f"Thank you for your ${amount_paid} deposit! We've secured your spot in our development queue. "
+                            f"To get started on your project, please fill out our intake form: {intake_form_url} "
+                            f"The remaining balance of ${full_price - amount_paid} will be due before your website goes live. "
+                            f"We'll be in touch shortly to discuss the next steps."
+                        )
+                        
+                        # Schedule a follow-up for the remaining balance in 3 days
+                        self.schedule_balance_reminder(lead_id, full_price - amount_paid, package_name)
                     
+                    # Add confirmation message to conversation
                     self.add_message(lead_id, self.conversations[lead_id].platform, "assistant", confirmation_message)
                     
-                    # Send notification to the team
+                    # Send notification to admin
                     send_notification(
-                        subject="New Website Payment!",
-                        message=f"Lead {lead_id} has completed payment for a website. Check conversations.json for details."
+                        subject=f"New Website {payment_type.capitalize()} Payment!",
+                        message=f"Lead {lead_id} has paid ${amount_paid} ({payment_status}) for a {package_name}. Check the Google Sheet for details."
                     )
                     
                     return {"status": "success", "message": "Payment processed successfully"}
-            
-            return {"status": "success", "message": "Webhook received"}
+                
+            return {"status": "ignored", "message": "Event not relevant"}
             
         except Exception as e:
             logger.error(f"Error processing webhook: {e}")
             return {"status": "error", "message": str(e)}
+
+    def schedule_balance_reminder(self, lead_id: str, balance_due: float, package_name: str):
+        """Schedule a reminder for the remaining balance payment."""
+        # We'll use our lead tracker to schedule this
+        reminder_data = {
+            "lead_id": lead_id,
+            "reminder_type": "balance_due",
+            "balance_amount": balance_due,
+            "package_name": package_name,
+            "scheduled_date": format_timestamp(datetime.now() + timedelta(days=3)),
+            "reminder_sent": False
+        }
+        
+        # Store the reminder in Google Sheets
+        self.lead_tracker.schedule_reminder(lead_id, reminder_data)
+        
+        # Log the scheduled reminder
+        logger.info(f"Scheduled balance reminder for lead {lead_id} in 3 days for ${balance_due}")
 
 
 # Singleton instance for use across the application

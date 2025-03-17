@@ -3,74 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Website Chat Widget</title>
+    <title>Website Chat Widget Example</title>
     <style>
         /* Chat widget styling */
-        #chat-widget {
+        #chat-container {
             position: fixed;
             bottom: 20px;
             right: 20px;
             width: 350px;
             height: 500px;
-            background-color: white;
+            background-color: #fff;
             border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
-            z-index: 1000;
             overflow: hidden;
-            transition: all 0.3s ease;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
         }
-        
-        #chat-widget.minimized {
-            height: 50px;
-        }
-        
+
         #chat-header {
+            padding: 15px;
             background-color: #4a6cf7;
             color: white;
-            padding: 10px 15px;
             font-weight: bold;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            cursor: pointer;
         }
-        
+
         #chat-messages {
             flex: 1;
             padding: 15px;
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
         }
-        
+
         .message {
-            max-width: 80%;
-            padding: 10px 15px;
             margin-bottom: 10px;
+            padding: 10px;
             border-radius: 15px;
-            line-height: 1.4;
+            max-width: 80%;
+            word-wrap: break-word;
         }
-        
+
         .user-message {
             background-color: #e6f2ff;
-            align-self: flex-end;
-            border-bottom-right-radius: 5px;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
         }
-        
+
         .bot-message {
-            background-color: #f1f0f0;
-            align-self: flex-start;
-            border-bottom-left-radius: 5px;
+            background-color: #f0f0f0;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
         }
-        
+
         #chat-input-container {
             display: flex;
             padding: 10px;
             border-top: 1px solid #e0e0e0;
         }
-        
+
         #chat-input {
             flex: 1;
             padding: 10px;
@@ -78,8 +71,8 @@
             border-radius: 20px;
             outline: none;
         }
-        
-        #chat-send-button {
+
+        #chat-submit {
             background-color: #4a6cf7;
             color: white;
             border: none;
@@ -89,11 +82,11 @@
             margin-left: 10px;
             cursor: pointer;
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
         }
-        
-        #chat-widget-button {
+
+        #chat-toggle {
             position: fixed;
             bottom: 20px;
             right: 20px;
@@ -101,113 +94,114 @@
             height: 60px;
             background-color: #4a6cf7;
             color: white;
+            border: none;
             border-radius: 50%;
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
             z-index: 1000;
             font-size: 24px;
         }
-        
-        .hidden {
-            display: none !important;
+
+        #chat-container.hidden {
+            display: none;
         }
-        
-        /* Loading indicator */
+
         .typing-indicator {
             display: flex;
-            align-items: center;
-            margin: 10px 0;
+            padding: 10px;
         }
-        
-        .typing-dot {
-            width: 8px;
-            height: 8px;
+
+        .typing-indicator span {
+            height: 10px;
+            width: 10px;
             margin: 0 2px;
-            background-color: #999;
+            background-color: #9E9E9E;
             border-radius: 50%;
-            animation: typing-bounce 1.4s infinite ease-in-out;
+            display: inline-block;
+            animation: typing 1.5s infinite ease-in-out;
         }
-        
-        .typing-dot:nth-child(1) { animation-delay: 0s; }
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-        
-        @keyframes typing-bounce {
-            0%, 80%, 100% { transform: scale(0.6); }
-            40% { transform: scale(1); }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0% { transform: translateY(0px); }
+            25% { transform: translateY(5px); }
+            50% { transform: translateY(0px); }
         }
     </style>
 </head>
 <body>
-    <!-- Chat widget button -->
-    <div id="chat-widget-button">💬</div>
-    
-    <!-- Chat widget container -->
-    <div id="chat-widget" class="hidden">
+    <!-- Chat toggle button -->
+    <button id="chat-toggle">💬</button>
+
+    <!-- Chat container -->
+    <div id="chat-container" class="hidden">
         <div id="chat-header">
-            <span>Chat with Us</span>
-            <span id="chat-minimize">_</span>
+            <span>Chat with us</span>
+            <span id="chat-minimize" style="cursor: pointer;">✖</span>
         </div>
-        
-        <div id="chat-messages">
-            <!-- Messages will be added here dynamically -->
-        </div>
-        
+        <div id="chat-messages"></div>
         <div id="chat-input-container">
             <input type="text" id="chat-input" placeholder="Type your message...">
-            <button id="chat-send-button">➤</button>
+            <button id="chat-submit">➤</button>
         </div>
     </div>
 
     <script>
-        // Configuration
-        const API_ENDPOINT = 'https://your-render-url.onrender.com/api/chat';
-        const API_KEY = 'your-api-key-here'; // Replace with your actual API key
-        
-        // Generate a random user ID
-        const userId = 'user_' + Math.random().toString(36).substring(2, 15);
+        // Configuration - REPLACE THESE VALUES WITH YOUR OWN
+        const API_URL = 'https://your-render-url.onrender.com/api/chat';
+        const API_KEY = 'your-api-key'; // The API key you set in your Render environment variables
         
         // DOM Elements
-        const chatWidget = document.getElementById('chat-widget');
-        const chatButton = document.getElementById('chat-widget-button');
+        const chatContainer = document.getElementById('chat-container');
+        const chatToggle = document.getElementById('chat-toggle');
+        const chatMinimize = document.getElementById('chat-minimize');
         const chatMessages = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
-        const chatSendButton = document.getElementById('chat-send-button');
-        const chatMinimize = document.getElementById('chat-minimize');
+        const chatSubmit = document.getElementById('chat-submit');
         
-        // Event Listeners
-        chatButton.addEventListener('click', toggleChat);
-        chatMinimize.addEventListener('click', minimizeChat);
-        chatSendButton.addEventListener('click', sendMessage);
-        chatInput.addEventListener('keypress', function(e) {
+        // Generate a unique user ID for this session if not already set
+        let userId = localStorage.getItem('chat_user_id');
+        if (!userId) {
+            userId = 'user_' + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('chat_user_id', userId);
+        }
+        
+        // Toggle chat visibility
+        chatToggle.addEventListener('click', () => {
+            chatContainer.classList.toggle('hidden');
+            chatToggle.classList.toggle('hidden');
+            
+            // If opening chat for first time, show welcome message
+            if (!chatContainer.classList.contains('hidden') && chatMessages.children.length === 0) {
+                addBotMessage("Hello! I'm your web development assistant. How can I help you today?");
+            }
+        });
+        
+        // Minimize chat
+        chatMinimize.addEventListener('click', () => {
+            chatContainer.classList.add('hidden');
+            chatToggle.classList.remove('hidden');
+        });
+        
+        // Send message on button click or Enter key
+        chatSubmit.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();
             }
         });
         
-        // Initialize with a welcome message when chat is first opened
-        let welcomeMessageSent = false;
-        
-        // Functions
-        function toggleChat() {
-            chatWidget.classList.toggle('hidden');
-            chatButton.classList.toggle('hidden');
-            
-            if (!welcomeMessageSent && !chatWidget.classList.contains('hidden')) {
-                // Add initial bot message
-                addBotMessage("Hi there! 👋 I'm your website assistant. How can I help you today?");
-                welcomeMessageSent = true;
-            }
-        }
-        
-        function minimizeChat() {
-            chatWidget.classList.toggle('minimized');
-            chatMinimize.textContent = chatWidget.classList.contains('minimized') ? '□' : '_';
-        }
-        
+        // Add a user message to the chat
         function addUserMessage(message) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', 'user-message');
@@ -216,6 +210,7 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
+        // Add a bot message to the chat
         function addBotMessage(message) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', 'bot-message');
@@ -224,76 +219,64 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
-        function addTypingIndicator() {
-            const indicatorElement = document.createElement('div');
-            indicatorElement.classList.add('typing-indicator', 'bot-message');
-            indicatorElement.id = 'typing-indicator';
-            
-            for (let i = 0; i < 3; i++) {
-                const dot = document.createElement('div');
-                dot.classList.add('typing-dot');
-                indicatorElement.appendChild(dot);
-            }
-            
-            chatMessages.appendChild(indicatorElement);
+        // Show typing indicator
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.classList.add('message', 'bot-message', 'typing-indicator');
+            indicator.innerHTML = '<span></span><span></span><span></span>';
+            indicator.id = 'typing-indicator';
+            chatMessages.appendChild(indicator);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
-        function removeTypingIndicator() {
+        // Hide typing indicator
+        function hideTypingIndicator() {
             const indicator = document.getElementById('typing-indicator');
             if (indicator) {
                 indicator.remove();
             }
         }
         
-        async function sendMessage() {
+        // Send message to API and handle response
+        function sendMessage() {
             const message = chatInput.value.trim();
-            if (message === '') return;
+            if (!message) return;
             
             // Add user message to chat
             addUserMessage(message);
-            
-            // Clear input
             chatInput.value = '';
             
             // Show typing indicator
-            addTypingIndicator();
+            showTypingIndicator();
             
-            try {
-                // Call the API
-                const response = await fetch(API_ENDPOINT, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': API_KEY
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        user_id: userId
-                    })
-                });
-                
+            // Send request to API
+            fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': API_KEY
+                },
+                body: JSON.stringify({
+                    message: message,
+                    user_id: userId
+                })
+            })
+            .then(response => {
                 if (!response.ok) {
-                    throw new Error('API request failed');
+                    throw new Error('Network response was not ok');
                 }
-                
-                const data = await response.json();
-                
-                // Remove typing indicator
-                removeTypingIndicator();
-                
-                // Add bot response
+                return response.json();
+            })
+            .then(data => {
+                // Hide typing indicator and add bot response
+                hideTypingIndicator();
                 addBotMessage(data.message);
-                
-            } catch (error) {
+            })
+            .catch(error => {
+                hideTypingIndicator();
+                addBotMessage('Sorry, I encountered an error. Please try again later.');
                 console.error('Error:', error);
-                
-                // Remove typing indicator
-                removeTypingIndicator();
-                
-                // Add error message
-                addBotMessage("Sorry, I'm having trouble connecting right now. Please try again later.");
-            }
+            });
         }
     </script>
 </body>

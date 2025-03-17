@@ -138,22 +138,29 @@ def notify_warm_lead(lead_data):
     business_name = lead_data.get("lead_data", {}).get("full_name", "Unknown business")
     
     subject = f"New Warm Lead: {business_name}"
+    
     message = f"""
-A new warm lead has responded positively:
+    New warm lead detected!
+    
+    Username: {username}
+    Platform: {platform}
+    Business: {business_name}
+    
+    The lead has expressed interest in our services. Check the CRM for more details.
+    """
+    
+    # Send the notification
+    return send_email_notification(subject, message, "high")
 
-Platform: {platform}
-Username: {username}
-Business: {business_name}
-Time: {format_timestamp()}
+def send_notification(subject, message, importance="normal"):
+    """Alias for send_email_notification for compatibility."""
+    return send_email_notification(subject, message, importance)
 
-Login to your account to respond promptly.
-"""
-    send_email_notification(subject, message, importance="high")
-
-def simulate_human_typing(driver, element, text, min_delay=0.05, max_delay=0.25):
-    """Simulate human typing with random delays between keystrokes."""
+def simulate_human_typing(element, text, min_delay=0.05, max_delay=0.25):
+    """Simulate human-like typing in a web element with random delays between keystrokes."""
     for char in text:
         element.send_keys(char)
+        # Add random delay between keystrokes
         time.sleep(random.uniform(min_delay, max_delay))
 
 def enforce_platform_limits(platform, daily_dm_count):

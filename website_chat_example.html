@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Chat Integration Example</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+        }
+        .content {
+            padding: 40px 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        h1 {
+            color: #fff;
+            margin: 0;
+        }
+        h2 {
+            color: #2c3e50;
+        }
+        /* Chat Widget Styles */
+        #chat-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 500px;
+            transition: all 0.3s ease;
+            z-index: 999;
+            transform: translateY(470px);
+        }
+        #chat-container.open {
+            transform: translateY(0);
+        }
+        #chat-header {
+            background-color: #3498db;
+            color: white;
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #chat-title {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        #chat-toggle {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        #chat-messages {
+            padding: 15px;
+            overflow-y: auto;
+            flex-grow: 1;
+            height: 300px;
+        }
+        .message {
+            margin-bottom: 15px;
+            max-width: 80%;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #e6f7ff;
+            margin-left: auto;
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #f0f0f0;
+            margin-right: auto;
+        }
+        #chat-input-container {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+        }
+        #chat-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        #chat-send {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .typing-indicator {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            margin-bottom: 15px;
+            width: 60px;
+        }
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            float: left;
+            margin: 0 1px;
+            background-color: #9E9EA1;
+            display: block;
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+        .typing-indicator span:nth-child(1) {
+            animation: 1s blink infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation: 1s blink infinite 0.33s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation: 1s blink infinite 0.66s;
+        }
+        @keyframes blink {
+            50% {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Website Chat Integration Example</h1>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="content">
+            <h2>AI Chatbot Integration</h2>
+            <p>This page demonstrates how to integrate the AI-powered chatbot into your website. The chatbot is communicating with the backend API that's connected to the same system used for Instagram, Facebook, LinkedIn, and Twitter messages.</p>
+            <p>Click the chat icon in the bottom right to start a conversation!</p>
+            <h2>Features</h2>
+            <ul>
+                <li>Natural, conversational AI using GPT models</li>
+                <li>Lead qualification and capture</li>
+                <li>Website package recommendations</li>
+                <li>Stripe payment integration</li>
+                <li>Follow-up automation</li>
+            </ul>
+            <p>All conversations sync with the LeadGen Bot system, so leads can seamlessly transition between website chat and social media conversations.</p>
+        </div>
+    </div>
+    
+    <!-- Chat Widget -->
+    <div id="chat-container">
+        <div id="chat-header">
+            <div id="chat-title">Website Chat Support</div>
+            <button id="chat-toggle">▲</button>
+        </div>
+        <div id="chat-messages">
+            <div class="message bot-message">Hi there! I help businesses set up professional websites in just 48 hours. How can I help you today?</div>
+            <div class="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        <div id="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Type your message here...">
+            <button id="chat-send">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Generate a random visitor ID
+        const visitorId = 'visitor_' + Math.random().toString(36).substring(2, 10);
+        
+        // Chat widget functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatContainer = document.getElementById('chat-container');
+            const chatToggle = document.getElementById('chat-toggle');
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+            const chatSend = document.getElementById('chat-send');
+            const typingIndicator = document.querySelector('.typing-indicator');
+            
+            // Toggle chat open/closed
+            chatToggle.addEventListener('click', function() {
+                chatContainer.classList.toggle('open');
+                chatToggle.textContent = chatContainer.classList.contains('open') ? '▼' : '▲';
+            });
+            
+            // Send message on button click
+            chatSend.addEventListener('click', sendMessage);
+            
+            // Send message on Enter key
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            function sendMessage() {
+                const message = chatInput.value.trim();
+                if (message === '') return;
+                
+                // Add user message to chat
+                addMessage(message, 'user');
+                chatInput.value = '';
+                
+                // Show typing indicator
+                typingIndicator.style.display = 'block';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Call the API (in a real implementation)
+                setTimeout(function() {
+                    // This is a mock API call - in production, use fetch() to call your actual API
+                    mockApiCall(message)
+                        .then(response => {
+                            // Hide typing indicator
+                            typingIndicator.style.display = 'none';
+                            
+                            // Add bot response to chat
+                            addMessage(response.message, 'bot');
+                            
+                            // Handle any actions from the response
+                            if (response.actions && response.actions.length > 0) {
+                                response.actions.forEach(action => {
+                                    if (action.type === 'payment_link') {
+                                        const paymentMsg = `Here's your payment link for the ${action.package} package: ${action.link}`;
+                                        addMessage(paymentMsg, 'bot');
+                                    }
+                                });
+                            }
+                        });
+                }, 1500); // Simulate API delay
+            }
+            
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(sender + '-message');
+                messageDiv.textContent = text;
+                
+                // Insert before typing indicator
+                chatMessages.insertBefore(messageDiv, typingIndicator);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            function mockApiCall(message) {
+                // This simulates calling your API endpoint
+                // In production, replace with actual fetch call:
+                /*
+                return fetch('http://your-api-url/api/chatbot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'your-api-key'
+                    },
+                    body: JSON.stringify({
+                        lead_id: visitorId,
+                        platform: 'website',
+                        message: message
+                    })
+                }).then(res => res.json());
+                */
+                
+                // Mock response for demo purposes
+                return new Promise((resolve) => {
+                    let response;
+                    
+                    if (message.toLowerCase().includes('price') || message.toLowerCase().includes('cost')) {
+                        response = {
+                            message: "We offer three packages:\n\n1. Basic Business Website: $497\n2. E-commerce Store: $997\n3. Custom Web Application: Starting at $1,997\n\nAll packages include domain setup, mobile-responsive design, SEO optimization, 48-hour delivery, and 30 days of support. Which one are you interested in?",
+                            actions: []
+                        };
+                    } else if (message.toLowerCase().includes('e-commerce') || message.toLowerCase().includes('ecommerce')) {
+                        response = {
+                            message: "Our E-commerce package is perfect for businesses that want to sell products online. It includes product listings, shopping cart, secure payment processing, and inventory management. Would you like to proceed with this option?",
+                            actions: []
+                        };
+                    } else if (message.toLowerCase().includes('yes') && message.toLowerCase().includes('proceed')) {
+                        response = {
+                            message: "Great! I'm preparing your E-commerce package order.",
+                            actions: [{
+                                type: 'payment_link',
+                                package: 'E-commerce',
+                                link: 'https://buy.stripe.com/demo/ecommerce_website_997'
+                            }]
+                        };
+                    } else {
+                        response = {
+                            message: "Thanks for your message! I'd be happy to help you set up a professional website for your business. Could you tell me a bit more about what kind of website you're looking for?",
+                            actions: []
+                        };
+                    }
+                    
+                    resolve(response);
+                });
+            }
+            
+            // Show the widget partially open initially
+            setTimeout(() => {
+                chatContainer.style.transform = 'translateY(420px)';
+            }, 1000);
+        });
+    </script>
+</body>
+</html> 

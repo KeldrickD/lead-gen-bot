@@ -1,0 +1,74 @@
+{
+  "timestamp": "2025-03-17 05:11:27",
+  "template_performance": {
+    "initial": {
+      "template_1": {
+        "sent_count": 0,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hey {owner_name}! I came across {business_name} and noticed you're doing great work. Have you thought about setting up a professional website to get even more clients? I build sleek, high-converting sites in 48 hours\u2014happy to show you what I can do!"
+      },
+      "template_2": {
+        "sent_count": 0,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hi {owner_name}! Just checked out your {business_type} business ({business_name}) and really like what you're doing. Would you be interested in a professional website that can help you book more clients? I specialize in designing websites for {business_type}s that convert visitors into customers."
+      },
+      "template_3": {
+        "sent_count": 30,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hey there {owner_name}! Your {business_type} business ({business_name}) caught my eye. Have you considered how a professional website could help grow your client base? I create custom websites specifically for {business_type}s that can be ready in just 48 hours.",
+        "last_sent": "2025-03-17 04:42:20"
+      },
+      "template_4": {
+        "sent_count": 27,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hi {owner_name}, I noticed your {business_type} business ({business_name}) online. Are you currently happy with how you're booking new clients? I help {business_type} businesses increase bookings with custom websites designed specifically for your industry.",
+        "last_sent": "2025-03-17 04:42:10"
+      },
+      "template_5": {
+        "sent_count": 3,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hey {owner_name}! Your {business_type} business ({business_name}) looks great! I've helped several {business_type}s in your area increase their client base by 30% with professional websites. Would you be interested in seeing some examples?",
+        "last_sent": "2025-03-17 04:42:13"
+      }
+    },
+    "follow_up": {
+      "template_1": {
+        "sent_count": 0,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hey {owner_name}, just following up on my previous message. Still interested in helping {business_name} get more clients with a professional website. Let me know if you'd like to chat about it!"
+      },
+      "template_2": {
+        "sent_count": 1,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hi again {owner_name}! Just checking in\u2014would you be interested in seeing some examples of websites I've built for other {business_type}s? No pressure, just thought it might be helpful for {business_name}.",
+        "last_sent": "2025-03-17 04:34:49"
+      },
+      "template_3": {
+        "sent_count": 0,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hey {owner_name}, just wanted to make sure you saw my previous message about creating a website for {business_name}. I've helped many {business_type}s increase their bookings with professional sites. Let me know if you're interested!"
+      },
+      "template_4": {
+        "sent_count": 0,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hi {owner_name}, I'm following up about creating a website for {business_name}. This week I'm offering a special deal for {business_type} businesses that includes a free month of SEO services. Let me know if you'd like to learn more!"
+      },
+      "template_5": {
+        "sent_count": 0,
+        "response_count": 0,
+        "conversion_count": 0,
+        "template": "Hey {owner_name}, just checking in. I recently completed a website for another {business_type} business that increased their bookings by 40%. Would you be interested in seeing how I could help {business_name} achieve similar results?"
+      }
+    }
+  },
+  "daily_stats": []
+}

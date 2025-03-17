@@ -1,0 +1,110 @@
+{
+  "openai": {
+    "api_key": "YOUR_OPENAI_API_KEY_HERE"
+  },
+  "social_platforms": {
+    "instagram": {
+      "username": "YOUR_INSTAGRAM_USERNAME",
+      "password": "YOUR_INSTAGRAM_PASSWORD",
+      "daily_dm_limit": 20
+    },
+    "facebook": {
+      "username": "YOUR_FACEBOOK_USERNAME",
+      "password": "YOUR_FACEBOOK_PASSWORD",
+      "daily_dm_limit": 15
+    },
+    "linkedin": {
+      "username": "YOUR_LINKEDIN_USERNAME",
+      "password": "YOUR_LINKEDIN_PASSWORD",
+      "daily_dm_limit": 10
+    },
+    "twitter": {
+      "username": "YOUR_TWITTER_USERNAME",
+      "password": "YOUR_TWITTER_PASSWORD",
+      "daily_dm_limit": 15
+    }
+  },
+  "lead_tracking": {
+    "google_sheets": {
+      "spreadsheet_id": "YOUR_GOOGLE_SPREADSHEET_ID",
+      "credentials_file": "google_credentials.json"
+    }
+  },
+  "lead_sources": {
+    "instagram_hashtags": [
+      "barber",
+      "webdesigner",
+      "hairstylist",
+      "fitnesscoach",
+      "realtor",
+      "restaurant",
+      "coffeeshop",
+      "plumber",
+      "contractor",
+      "cardetailer",
+      "lawyer",
+      "accountant",
+      "dentist",
+      "nailsalon",
+      "spa",
+      "photographer",
+      "cleaningservice",
+      "movingservice",
+      "hvac",
+      "weddingplanner",
+      "eventplanner",
+      "interiordesigner",
+      "landscaper",
+      "petgrooming",
+      "chiropractor",
+      "optometrist",
+      "physiotherapist",
+      "massage",
+      "boutique",
+      "daycare",
+      "fitnessstudio",
+      "coaching",
+      "localshop"
+    ],
+    "business_types": [
+      "Barber",
+      "Trainer",
+      "Real Estate Agent",
+      "Hair Stylist",
+      "Restaurant",
+      "Coffee Shop",
+      "Plumber",
+      "Contractor",
+      "Car Detailer",
+      "Lawyer",
+      "Accountant",
+      "Dentist",
+      "Nail Salon",
+      "Spa",
+      "Photographer",
+      "Cleaning Service",
+      "Moving Service",
+      "HVAC Service",
+      "Wedding Planner",
+      "Event Planner",
+      "Interior Designer",
+      "Landscaper",
+      "Pet Grooming",
+      "Chiropractor",
+      "Optometrist",
+      "Physiotherapist",
+      "Massage Therapist",
+      "Boutique",
+      "Daycare Center",
+      "Fitness Studio",
+      "Gym",
+      "Life Coach",
+      "Business Consultant",
+      "Local Retailer"
+    ]
+  },
+  "messaging": {
+    "follow_up_delay_hours": 24,
+    "max_follow_ups": 2
+  }
+} 

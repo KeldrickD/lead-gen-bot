@@ -1,0 +1,159 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="stats-number">{{ stats.messages_sent }}</div>
+                <div class="stats-label">Messages Sent</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="stats-number">{{ stats.responses }}</div>
+                <div class="stats-label">Responses</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="stats-number">{{ stats.warm_leads }}</div>
+                <div class="stats-label">Warm Leads</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="stats-number">{{ stats.response_rate }}%</div>
+                <div class="stats-label">Response Rate</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                Daily Activity
+            </div>
+            <div class="card-body">
+                <img src="data:image/png;base64,{{ charts.daily_activity }}" class="img-fluid" alt="Daily Activity Chart">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                Template Performance
+            </div>
+            <div class="card-body">
+                <h5>Initial Templates</h5>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Template</th>
+                            <th>Sent</th>
+                            <th>Response Rate</th>
+                            <th>Conversion Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for template in templates.initial %}
+                        <tr>
+                            <td>{{ template.template_id }}</td>
+                            <td>{{ template.sent_count }}</td>
+                            <td>{{ "%.1f"|format(template.response_rate * 100) }}%</td>
+                            <td>{{ "%.1f"|format(template.conversion_rate * 100) }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <h5 class="mt-4">Follow-up Templates</h5>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Template</th>
+                            <th>Sent</th>
+                            <th>Response Rate</th>
+                            <th>Conversion Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for template in templates.follow_up %}
+                        <tr>
+                            <td>{{ template.template_id }}</td>
+                            <td>{{ template.sent_count }}</td>
+                            <td>{{ "%.1f"|format(template.response_rate * 100) }}%</td>
+                            <td>{{ "%.1f"|format(template.conversion_rate * 100) }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                Optimization Recommendations
+            </div>
+            <div class="card-body">
+                {% for category, recs in recommendations.items() %}
+                <h5>{{ category.replace('_', ' ').title() }}</h5>
+                <ul class="list-group mb-3">
+                    {% for item, details in recs.items() %}
+                    <li class="list-group-item">
+                        <strong>{{ item }}:</strong> {{ details.recommendation }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                Platform Restrictions
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for restriction, count in restrictions.items() %}
+                    <div class="col-md-3">
+                        <div class="card mb-3 {% if count > 5 %}bg-warning{% else %}bg-light{% endif %}">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">{{ restriction.replace('_', ' ').title() }}</h5>
+                                <h2>{{ count }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Refresh page every 5 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+</script>
+{% endblock %}

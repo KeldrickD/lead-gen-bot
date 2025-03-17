@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: leadgen-bot-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn api_minimal:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false 
